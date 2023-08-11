@@ -1,0 +1,14 @@
+import requests
+
+
+class API:
+    def __init__(self, api_key, country):
+        self.api_key = api_key
+        self.country = country
+
+    def call(self, type, url):
+        headers = {
+            "authorization": f"Basic {self.api_key}",
+            "cache-control": "no-cache",
+        }
+        return requests.request(type, url, headers=headers)

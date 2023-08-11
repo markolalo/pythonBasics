@@ -1,0 +1,146 @@
+from collections.abc import MutableMapping
+from multiprocessing import connection
+from dotenv import load_dotenv
+from api_class import API
+import pandas
+import json
+import csv
+import os
+
+
+class SynchroteamETL:
+    def __init__(self):
+        load_dotenv()
+        self.modules = self._set_modules()
+        self.countries = self._set_countries()
+        self._run_script()
+
+    def _set_modules(self):
+        # NOTE: Uncomment the modules you'd like to be run
+        return [
+            # "job",
+            "user",
+            # "team",
+            # "site",
+            # "invoice",
+            # "activity",
+            # "customer",
+            # "quotation"
+            # "equipment",
+            # "creditnote",     # NOTE: We don't use this feature
+            # "partrequest",    # NOTE: We don't use this feature
+        ]
+
+    def _set_countries(self):
+        # NOTE: Uncomment the country you'd like to be run
+        return [
+            API(os.getenv("API_KEY_KENYA"), "KENYA"),
+            API(os.getenv("API_KEY_UGANDA"), "UGANDA"),
+            API(os.getenv("API_KEY_ZAMBIA"), "ZAMBIA"),
+            API(os.getenv("API_KEY_RWANDA"), "RWANDA"),
+            API(os.getenv("API_KEY_TANZANIA"), "TANZANIA"),
+        ]
+
+    def _run_script(self):
+        for module in self.modules:
+            self.response = []
+
+            # Getting the data for the module for all countries
+            for country in self.countries:
+                response = self._get_data(country, module) #Pass Country object
+                response = self._append_country_to_data(
+                    country.country,
+                    response,
+                )
+                self.response.append(response)
+
+            unpaginated_data = []
+            for requests in self.response:
+                for page in requests:
+                    for datum in page["data"]:
+                        unpaginated_data.append(datum)
+
+            # Flatten the JSON
+            flat_json = [self._flatten_dict(data) for data in unpaginated_data]
+
+            # Write CSV
+            self._write_to_csv(flat_json, module)
+
+        return self.response
+
+    def _append_country_to_data(self, country, response):
+        for page in response:
+            page.pop("page")
+            page.pop("pageSize")
+            page.pop("records")
+            page.pop("recordsTotal")
+            for datum in page["data"]:
+                datum["country"] = country
+                datum["customFieldValues"] = ""
+        return response
+
+    def _get_data(self, connection, module) -> API:
+        # Initializing an array to hold the response
+        response = self._get_data(country, module)
+        page = 1
+
+        """
+            For testing, replace the "while (True)" with:
+            for page in range(1,2):
+                {The rest of the code goes here}
+
+            For getting all of the data, replace for page in range(1,2) with:
+            while (True):
+                {The rest of the code goes here}
+        """
+        while True:
+            temp = connection.call(
+                "GET",
+                "https://ws.synchroteam.com/api/v3/"
+                + module
+                + f"/list?page={page}&pageSize=100",
+            )
+
+            # Checking if the page received has empty data
+            if len(json.loads(temp.text)["data"]) == 0:
+                break
+            else:
+                response.append(temp)
+                page += 1
+
+        # Merging the data from the multiple pages into one dictionary
+        return [json.loads(r.text) for r in response]  # type:ignore
+
+    def _flatten_dict(
+        self,
+        d: MutableMapping,
+        sep: str = "_",
+    ) -> MutableMapping:
+        [flat_dict] = pandas.json_normalize(
+            d,  # type:ignore
+            sep=sep,
+        ).to_dict(orient="records")
+        return flat_dict
+
+    def _write_to_csv(self, json, module):
+        for json_dict in json:
+            keys = json_dict.keys()
+
+        with open(
+            f"{module}.csv",
+            "w",
+            newline="",
+            encoding="utf-8",
+        ) as output_file:
+            dict_writer = csv.DictWriter(
+                output_file,
+                keys,  # type:ignore
+                extrasaction="ignore",
+            )
+            dict_writer.writeheader()
+            dict_writer.writerows(json)
+
+
+if __name__ == "__main__":
+    SynchroteamETL()
+
