@@ -1,2 +1,2 @@
-@py.exe C:\Users\Molalo\OneDrive - DAVIS and SHIRTLIFF LTD\Documents\Python Scripts\mclip.py *%
+@py.exe D:\DS_Folder\Python_Scripts\pythonBasics\mclip.py %*
 @pause

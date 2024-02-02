@@ -13,7 +13,8 @@ TEXT = {'agree':"""Yes. That sounds fine.""",
          'sp':"""I hope you are well. Kindly note that we are fully booked for tomorrow.
          Do let me know whether it will be okay to use a service provider on your site.
          Alternatively, you could allow us to reschedule this to he day after.
-         Looking forward to your response."""}
+         Looking forward to your response.""",
+         "updated":"""Customer details have been updated successfully. Please proceed with your booking.\nRegards"""}
 
 #commandline arguments
 import sys, pyperclip
